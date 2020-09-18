@@ -189,7 +189,7 @@ interface ICurveFi {
   ) external;
 }
 
-interface yERC20 {
+interface vERC20 {
   function deposit(uint256 _amount) external;
   function withdraw(uint256 _amount) external;
   function getPricePerFullShare() external view returns (uint256);
@@ -202,17 +202,17 @@ interface borrower {
   function repayAave(address _reserve, uint256 _amount) external;
 }
 
-contract iTrade is ReentrancyGuard, Ownable {
+contract vTrade is ReentrancyGuard, Ownable {
   using SafeERC20 for IERC20;
   using Address for address;
   using SafeMath for uint256;
 
-  address public constant yCurveSwap = address(0x45F783CCE6B7FF23B2ab2D70e416cdb7D6055f51);
+  address public constant vCurveSwap = address(0x45F783CCE6B7FF23B2ab2D70e416cdb7D6055f51);
 
-  address public constant yDAI = address(0x16de59092dAE5CcF4A1E6439D611fd0653f0Bd01);
-  address public constant yUSDC = address(0xd6aD7a6750A7593E092a9B218d66C0A814a3436e);
-  address public constant yUSDT = address(0x83f798e925BcD4017Eb265844FDDAbb448f1707D);
-  address public constant yTUSD = address(0x73a052500105205d34Daf004eAb301916DA8190f);
+  address public constant vDAI = address(0x16de59092dAE5CcF4A1E6439D611fd0653f0Bd01);
+  address public constant vUSDC = address(0xd6aD7a6750A7593E092a9B218d66C0A814a3436e);
+  address public constant vUSDT = address(0x83f798e925BcD4017Eb265844FDDAbb448f1707D);
+  address public constant vTUSD = address(0x73a052500105205d34Daf004eAb301916DA8190f);
 
   address public constant DAI = address(0x6B175474E89094C44Da98b954EedeAC495271d0F);
   address public constant USDC = address(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
@@ -245,29 +245,29 @@ contract iTrade is ReentrancyGuard, Ownable {
       IERC20(USDT).safeApprove(collateral, uint(0));
       IERC20(USDT).safeApprove(collateral, uint(-1));
 
-      IERC20(DAI).safeApprove(yDAI, uint(-1));
-      IERC20(USDC).safeApprove(yUSDC, uint(-1));
-      IERC20(TUSD).safeApprove(yTUSD, uint(-1));
+      IERC20(DAI).safeApprove(vDAI, uint(-1));
+      IERC20(USDC).safeApprove(vUSDC, uint(-1));
+      IERC20(TUSD).safeApprove(vTUSD, uint(-1));
 
-      IERC20(USDT).safeApprove(yUSDT, uint(0));
-      IERC20(USDT).safeApprove(yUSDT, uint(-1));
+      IERC20(USDT).safeApprove(vUSDT, uint(0));
+      IERC20(USDT).safeApprove(vUSDT, uint(-1));
 
       // Approvals for swaps
-      IERC20(DAI).safeApprove(yCurveSwap, uint(-1));
-      IERC20(USDC).safeApprove(yCurveSwap, uint(-1));
-      IERC20(TUSD).safeApprove(yCurveSwap, uint(-1));
+      IERC20(DAI).safeApprove(vCurveSwap, uint(-1));
+      IERC20(USDC).safeApprove(vCurveSwap, uint(-1));
+      IERC20(TUSD).safeApprove(vCurveSwap, uint(-1));
 
-      IERC20(USDT).safeApprove(yCurveSwap, uint(0));
-      IERC20(USDT).safeApprove(yCurveSwap, uint(-1));
+      IERC20(USDT).safeApprove(vCurveSwap, uint(0));
+      IERC20(USDT).safeApprove(vCurveSwap, uint(-1));
   }
 
   function addCollateral(address _reserve, address _to, uint256 _amount, uint256 _min_to_amount, uint256 leverage) external {
-      require(isLeverage(leverage) == true, "itrade: invalid leverage parameter");
-      require(isReserve(_reserve) == true, "itrade: invalid reserve");
+      require(isLeverage(leverage) == true, "vtrade: invalid leverage parameter");
+      require(isReserve(_reserve) == true, "vtrade: invalid reserve");
 
       IERC20(_reserve).safeTransferFrom(msg.sender, address(this), _amount);
       principals[_reserve][msg.sender] = principals[_reserve][msg.sender].add(_amount);
-      yERC20(getYToken(_reserve)).deposit(_amount);
+      vERC20(getVToken(_reserve)).deposit(_amount);
 
       uint256 _borrow = (_amount.mul(leverage));
       uint256 _pool = borrower(collateral).getBorrowDebt(_reserve);
@@ -282,38 +282,38 @@ contract iTrade is ReentrancyGuard, Ownable {
 
       uint8 _fromID = getCurveID(_reserve);
       uint8 _toID = getCurveID(_to);
-      require(IERC20(_to).balanceOf(address(this)) == 0, "itrade: unexpected result");
-      ICurveFi(yCurveSwap).exchange_underlying(_fromID, _toID, _borrow, _min_to_amount);
+      require(IERC20(_to).balanceOf(address(this)) == 0, "vtrade: unexpected result");
+      ICurveFi(vCurveSwap).exchange_underlying(_fromID, _toID, _borrow, _min_to_amount);
       uint256 _bought = IERC20(_to).balanceOf(address(this));
       positions[_to][msg.sender] = positions[_to][msg.sender].add(_bought);
 
-      yERC20(getYToken(_to)).deposit(_bought);
+      vERC20(getVToken(_to)).deposit(_bought);
   }
 
   function withdrawCollateral(address _reserve, uint256 _amount) external {
-      require(isReserve(_reserve) == true, "itrade: invalid reserve");
-      require(getUserDebt(_reserve, msg.sender) == 0, "itrade: outstanding debt to settle");
+      require(isReserve(_reserve) == true, "vtrade: invalid reserve");
+      require(getUserDebt(_reserve, msg.sender) == 0, "vtrade: outstanding debt to settle");
 
-      require(_amount <= principals[_reserve][msg.sender], "itrade: insufficient balance");
-      require(IERC20(_reserve).balanceOf(address(this)) == 0, "itrade: unexpected result");
+      require(_amount <= principals[_reserve][msg.sender], "vtrade: insufficient balance");
+      require(IERC20(_reserve).balanceOf(address(this)) == 0, "vtrade: unexpected result");
 
-      uint256 _price = yERC20(getYToken(_reserve)).getPricePerFullShare();
-      uint256 _ytoken = _amount.mul(1e18).div(_price);
-      yERC20(getYToken(_reserve)).withdraw(_ytoken);
+      uint256 _price = vERC20(getVToken(_reserve)).getPricePerFullShare();
+      uint256 _vtoken = _amount.mul(1e18).div(_price);
+      vERC20(getVToken(_reserve)).withdraw(_vtoken);
 
-      require(IERC20(_reserve).balanceOf(address(this)) >= _amount, "itrade: unexpected result");
+      require(IERC20(_reserve).balanceOf(address(this)) >= _amount, "vtrade: unexpected result");
       principals[_reserve][msg.sender] = principals[_reserve][msg.sender].sub(_amount);
 
       IERC20(_reserve).safeTransfer(msg.sender, _amount);
 
       // Cleanup dust (if any)
       if (IERC20(_reserve).balanceOf(address(this)) > 0) {
-        yERC20(getYToken(_reserve)).deposit(IERC20(_reserve).balanceOf(address(this)));
+        vERC20(getVToken(_reserve)).deposit(IERC20(_reserve).balanceOf(address(this)));
       }
   }
 
   function repayDebt(address _reserve, uint256 _amount) external {
-      require(isReserve(_reserve) == true, "itrade: invalid reserve");
+      require(isReserve(_reserve) == true, "vtrade: invalid reserve");
 
       uint256 debt = getUserDebt(_reserve, msg.sender);
 
@@ -328,7 +328,7 @@ contract iTrade is ReentrancyGuard, Ownable {
   }
 
   function settle(address _reserve) external {
-      require(isReserve(_reserve) == true, "itrade: invalid reserve");
+      require(isReserve(_reserve) == true, "vtrade: invalid reserve");
 
       uint256 _debt = getUserDebt(_reserve, msg.sender);
       IERC20(_reserve).safeTransferFrom(msg.sender, address(this), _debt);
@@ -337,36 +337,36 @@ contract iTrade is ReentrancyGuard, Ownable {
   }
 
   function tradePosition(address _reserve, address _to, uint256 _amount, uint256 _min_to_amount) external {
-      require(isReserve(_reserve) == true, "itrade: invalid reserve");
-      require(_amount <= positions[_reserve][msg.sender], "itrade: insufficient balance");
-      require(IERC20(_reserve).balanceOf(address(this)) == 0, "itrade: unexpected result");
+      require(isReserve(_reserve) == true, "vtrade: invalid reserve");
+      require(_amount <= positions[_reserve][msg.sender], "vtrade: insufficient balance");
+      require(IERC20(_reserve).balanceOf(address(this)) == 0, "vtrade: unexpected result");
 
-      uint256 _price = yERC20(getYToken(_reserve)).getPricePerFullShare();
-      uint256 _ytoken = _amount.mul(1e18).div(_price);
-      yERC20(getYToken(_reserve)).withdraw(_ytoken);
+      uint256 _price = vERC20(getYToken(_reserve)).getPricePerFullShare();
+      uint256 _vtoken = _amount.mul(1e18).div(_price);
+      vERC20(getVToken(_reserve)).withdraw(_vtoken);
 
-      require(IERC20(_reserve).balanceOf(address(this)) >= _amount, "itrade: unexpected result");
-      require(IERC20(_to).balanceOf(address(this)) == 0, "itrade: unexpected result");
+      require(IERC20(_reserve).balanceOf(address(this)) >= _amount, "vtrade: unexpected result");
+      require(IERC20(_to).balanceOf(address(this)) == 0, "vtrade: unexpected result");
 
       uint8 _fromID = getCurveID(_reserve);
       uint8 _toID = getCurveID(_to);
 
-      ICurveFi(yCurveSwap).exchange_underlying(_fromID, _toID, _amount, _min_to_amount);
+      ICurveFi(vCurveSwap).exchange_underlying(_fromID, _toID, _amount, _min_to_amount);
       positions[_reserve][msg.sender] = positions[_reserve][msg.sender].sub(_amount);
       uint256 _bought = IERC20(_to).balanceOf(address(this));
       positions[_to][msg.sender] = positions[_to][msg.sender].add(_bought);
-      yERC20(getYToken(_to)).deposit(_bought);
+      vERC20(getVToken(_to)).deposit(_bought);
 
       // Cleanup dust (if any)
       if (IERC20(_reserve).balanceOf(address(this)) > 0) {
-        yERC20(getYToken(_reserve)).deposit(IERC20(_reserve).balanceOf(address(this)));
+        vERC20(getVToken(_reserve)).deposit(IERC20(_reserve).balanceOf(address(this)));
       }
   }
 
   function closePosition(address _reserve, uint256 _amount) external {
-      require(isReserve(_reserve) == true, "itrade: invalid reserve");
-      require(_amount <= positions[_reserve][msg.sender], "itrade: insufficient balance");
-      require(IERC20(_reserve).balanceOf(address(this)) == 0, "itrade: unexpected result");
+      require(isReserve(_reserve) == true, "vtrade: invalid reserve");
+      require(_amount <= positions[_reserve][msg.sender], "vtrade: insufficient balance");
+      require(IERC20(_reserve).balanceOf(address(this)) == 0, "vtrade: unexpected result");
 
       uint256 debt = getUserDebt(_reserve, msg.sender);
       uint256 ret = 0;
@@ -376,9 +376,9 @@ contract iTrade is ReentrancyGuard, Ownable {
         _amount = debt;
       }
 
-      uint256 _price = yERC20(getYToken(_reserve)).getPricePerFullShare();
-      uint256 _ytoken = _amount.mul(1e18).div(_price);
-      yERC20(getYToken(_reserve)).withdraw(_ytoken);
+      uint256 _price = vERC20(getVToken(_reserve)).getPricePerFullShare();
+      uint256 _vtoken = _amount.mul(1e18).div(_price);
+      vERC20(getVToken(_reserve)).withdraw(_vtoken);
 
       uint256 shares = debts[_reserve][msg.sender].mul(_amount).div(debt);
       borrower(collateral).repayAave(_reserve, _amount);
@@ -391,7 +391,7 @@ contract iTrade is ReentrancyGuard, Ownable {
 
       // Cleanup dust (if any)
       if (IERC20(_reserve).balanceOf(address(this)) > 0) {
-        yERC20(getYToken(_reserve)).deposit(IERC20(_reserve).balanceOf(address(this)));
+        vERC20(getVToken(_reserve)).deposit(IERC20(_reserve).balanceOf(address(this)));
       }
   }
 
@@ -412,15 +412,15 @@ contract iTrade is ReentrancyGuard, Ownable {
       debts[_reserve][account] = debts[_reserve][account].sub(amount, "DEBT: burn amount exceeds balance");
       debtsTotalSupply[_reserve] = debtsTotalSupply[_reserve].sub(amount);
   }
-  function getYToken(address _reserve) public pure returns (address) {
+  function getVToken(address _reserve) public pure returns (address) {
       if (_reserve == DAI) {
-        return yDAI;
+        return vDAI;
       } else if (_reserve == USDC) {
-        return yUSDC;
+        return vUSDC;
       } else if (_reserve == USDT) {
-        return yUSDT;
+        return vUSDT;
       /*} else if (_reserve == TUSD) {
-        return yTUSD;*/
+        return vTUSD;*/
       } else {
         return address(0x0);
       }
