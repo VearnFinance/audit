@@ -281,7 +281,7 @@ interface Controller {
     function withdraw(address token, uint amount) external;
 }
 
-contract yVault is ERC20, ERC20Detailed {
+contract vVault is ERC20, ERC20Detailed {
   using SafeERC20 for IERC20;
   using Address for address;
   using SafeMath for uint256;
@@ -292,8 +292,8 @@ contract yVault is ERC20, ERC20Detailed {
   address public controller;
 
   constructor (address _token, address _controller) public ERC20Detailed(
-      string(abi.encodePacked("yearn ", ERC20Detailed(_token).name())),
-      string(abi.encodePacked("y", ERC20Detailed(_token).symbol())),
+      string(abi.encodePacked("vearn ", ERC20Detailed(_token).name())),
+      string(abi.encodePacked("v", ERC20Detailed(_token).symbol())),
       ERC20Detailed(_token).decimals()
   ) {
     token = _token;
@@ -350,8 +350,8 @@ contract yVault is ERC20, ERC20Detailed {
   {
       require(_shares > 0, "<0");
 
-      uint256 yBalance = balanceOf(msg.sender);
-      require(_shares <= yBalance, "!balance");
+      uint256 vBalance = balanceOf(msg.sender);
+      require(_shares <= vBalance, "!balance");
 
       uint256 r = (balance.mul(_shares)).div(totalSupply());
       _burn(msg.sender, _shares);
