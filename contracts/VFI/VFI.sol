@@ -194,7 +194,7 @@ library SafeERC20 {
     }
 }
 
-contract YFI is ERC20, ERC20Detailed {
+contract VFI is ERC20, ERC20Detailed {
   using SafeERC20 for IERC20;
   using Address for address;
   using SafeMath for uint;
@@ -203,7 +203,7 @@ contract YFI is ERC20, ERC20Detailed {
   address public governance;
   mapping (address => bool) public minters;
 
-  constructor () public ERC20Detailed("yearn.finance", "YFI", 18) {
+  constructor () public ERC20Detailed("vearn.finance", "VFI", 18) {
       governance = msg.sender;
   }
 
