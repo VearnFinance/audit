@@ -277,13 +277,13 @@ library SafeERC20 {
     }
 }
 
-interface yERC20 {
+interface vERC20 {
   function deposit(uint256 _amount) external;
   function withdraw(uint256 _amount) external;
   function getPricePerFullShare() external view returns (uint256);
 }
 
-interface yCurveFi {
+interface vCurveFi {
   function add_liquidity(
     uint256[4] calldata amounts,
     uint256 min_mint_amount
@@ -308,8 +308,8 @@ contract SupplyFactory is ERC20, ERC20Detailed, ReentrancyGuard, Ownable {
   using SafeMath for uint256;
 
   uint256 public constant maxBorrowBase = uint256(100);
-  address public constant yCURVE = address(0xdF5e0e81Dff6FAF3A7e52BA697820c5e32D806A8);
-  address public constant ySWAP = address(0x45F783CCE6B7FF23B2ab2D70e416cdb7D6055f51);
+  address public constant vCURVE = address(0xdF5e0e81Dff6FAF3A7e52BA697820c5e32D806A8);
+  address public constant vSWAP = address(0x45F783CCE6B7FF23B2ab2D70e416cdb7D6055f51);
   SynthERC20 public sEUR;
 
   uint256 public maxBorrow;
@@ -343,7 +343,7 @@ contract SupplyFactory is ERC20, ERC20Detailed, ReentrancyGuard, Ownable {
       require(_amount > 0, "deposit must be greater than 0");
       uint256 pool = calcPoolValueInToken();
 
-      IERC20(yCURVE).safeTransferFrom(msg.sender, address(this), _amount);
+      IERC20(vCURVE).safeTransferFrom(msg.sender, address(this), _amount);
 
       // Calculate collateral pool shares
       uint256 shares = 0;
@@ -372,12 +372,12 @@ contract SupplyFactory is ERC20, ERC20Detailed, ReentrancyGuard, Ownable {
       uint maxDebt = supply().mul(maxBorrow).div(maxBorrowBase);
       require(calcSystemDebt() < maxDebt, "supply: over max collateralization");
 
-      IERC20(yCURVE).safeTransfer(msg.sender, r);
+      IERC20(vCURVE).safeTransfer(msg.sender, r);
   }
 
   function supply() public view returns (uint256) {
-      return IERC20(yCURVE).balanceOf(address(this))
-        .mul(yCurveFi(ySWAP)
+      return IERC20(vCURVE).balanceOf(address(this))
+        .mul(vCurveFi(vSWAP)
         .get_virtual_price()).div(1e18);
   }
 
